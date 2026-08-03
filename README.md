@@ -6,6 +6,7 @@ Editor interactivo de perfiles topográficos a partir de tracks **GPX/KML**: vis
 
 ![Editor de Perfiles Topográficos — ventana principal](docs/screenshots/index.png)
 ![Editor de Perfiles Topográficos — ventana principal](docs/screenshots/mapa.png)
+![Editor de Perfiles Topográficos — ventana principal](docs/screenshots/informe.png)
 
 ## Enlace
 
