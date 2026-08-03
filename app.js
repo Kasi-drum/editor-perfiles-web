@@ -217,6 +217,7 @@ function initApp() {
   document.getElementById("btn-open").addEventListener("click", openGPX);
   document.getElementById("file-name").textContent = gpxFileName;
   document.getElementById("btn-export").addEventListener("click", exportDialog);
+  document.getElementById("btn-capturar").addEventListener("click", capturarPantalla);
   updateFileStats();
   document.getElementById("btn-save-gpx").addEventListener("click", saveGPX);
   document.getElementById("btn-analyze").addEventListener("click", analyzeGPX);
@@ -1582,4 +1583,19 @@ function downloadBlob(blob, filename) {
   a.click();
   document.body.removeChild(a);
   setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+}
+function capturarPantalla() {
+  document.getElementById("btn-capturar").disabled = true;
+  var base = gpxFileName ? gpxFileName : "captura";
+  html2canvas(document.body, { scale: Math.min(window.devicePixelRatio || 1, 2), useCORS: true, backgroundColor: null })
+    .then(function(canvas) {
+      canvas.toBlob(function(blob) {
+        downloadBlob(blob, base + "_pantalla.png");
+        document.getElementById("btn-capturar").disabled = false;
+      }, "image/png");
+    })
+    .catch(function(err) {
+      document.getElementById("btn-capturar").disabled = false;
+      alert("No se pudo capturar la pantalla: " + err.message);
+    });
 }
