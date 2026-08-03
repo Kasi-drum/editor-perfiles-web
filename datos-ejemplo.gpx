@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="editor-perfiles">
+  <trk>
+    <name>Ejemplo - Ascenso al Pico</name>
+    <trkseg>
+      <trkpt lat="42.5000" lon="1.5000"><ele>1200</ele></trkpt>
+      <trkpt lat="42.5010" lon="1.5010"><ele>1215</ele></trkpt>
+      <trkpt lat="42.5020" lon="1.5020"><ele>1230</ele></trkpt>
+      <trkpt lat="42.5035" lon="1.5035"><ele>1260</ele></trkpt>
+      <trkpt lat="42.5050" lon="1.5050"><ele>1290</ele></trkpt>
+      <trkpt lat="42.5070" lon="1.5070"><ele>1330</ele></trkpt>
+      <trkpt lat="42.5090" lon="1.5090"><ele>1370</ele></trkpt>
+      <trkpt lat="42.5115" lon="1.5115"><ele>1420</ele></trkpt>
+      <trkpt lat="42.5140" lon="1.5140"><ele>1450</ele></trkpt>
+      <trkpt lat="42.5160" lon="1.5160"><ele>1470</ele></trkpt>
+      <trkpt lat="42.5180" lon="1.5180"><ele>1486</ele></trkpt>
+      <trkpt lat="42.5195" lon="1.5195"><ele>1480</ele></trkpt>
+      <trkpt lat="42.5210" lon="1.5210"><ele>1460</ele></trkpt>
+      <trkpt lat="42.5230" lon="1.5230"><ele>1430</ele></trkpt>
+      <trkpt lat="42.5250" lon="1.5250"><ele>1400</ele></trkpt>
+      <trkpt lat="42.5265" lon="1.5265"><ele>1380</ele></trkpt>
+      <trkpt lat="42.5280" lon="1.5280"><ele>1350</ele></trkpt>
+      <trkpt lat="42.5300" lon="1.5300"><ele>1320</ele></trkpt>
+      <trkpt lat="42.5320" lon="1.5320"><ele>1300</ele></trkpt>
+      <trkpt lat="42.5340" lon="1.5340"><ele>1280</ele></trkpt>
+      <trkpt lat="42.5360" lon="1.5360"><ele>1260</ele></trkpt>
+      <trkpt lat="42.5375" lon="1.5375"><ele>1250</ele></trkpt>
+      <trkpt lat="42.5390" lon="1.5390"><ele>1240</ele></trkpt>
+      <trkpt lat="42.5400" lon="1.5400"><ele>1230</ele></trkpt>
+      <trkpt lat="42.5410" lon="1.5410"><ele>1220</ele></trkpt>
+      <trkpt lat="42.5420" lon="1.5420"><ele>1210</ele></trkpt>
+      <trkpt lat="42.5430" lon="1.5430"><ele>1205</ele></trkpt>
+      <trkpt lat="42.5450" lon="1.5450"><ele>1200</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

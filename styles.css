@@ -1,0 +1,112 @@
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,sans-serif; background:#f5f5f5; color:#333; min-height:100dvh; display:flex; flex-direction:column; }
+
+/* ─── TOOLBAR (mobile) ─── */
+#toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:2px 4px; padding:4px 6px; background:#fff; border-bottom:1px solid #ddd; user-select:none; flex-shrink:0; }
+.toolbar-group { display:flex; flex-direction:column; align-items:center; gap:1px; }
+.group-title { font-size:9px; color:#111; font-weight:bold; text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap; }
+.group-buttons { display:flex; align-items:center; gap:2px; flex-wrap:wrap; }
+.group-label { font-size:10px; color:#888; text-transform:uppercase; letter-spacing:0.3px; margin-right:1px; }
+#toolbar button { padding:3px 6px; border:1px solid #ccc; border-radius:3px; background:#fafafa; cursor:pointer; font-size:11px; white-space:nowrap; min-height:28px; }
+#toolbar button:hover { background:#e8e8e8; }
+#toolbar button.active { background:#1565C0; color:#fff; border-color:#1565C0; }
+#toolbar button.btn-primary { background:#1565C0; color:#fff; border-color:#1565C0; }
+#toolbar button.btn-primary:hover { background:#0d47a1; }
+#toolbar button.btn-accent-green { background:#2e7d32; color:#fff; border-color:#2e7d32; }
+#toolbar button.btn-accent-green:hover { background:#1b5e20; }
+#toolbar button.btn-accent-orange { background:#e65100; color:#fff; border-color:#e65100; }
+#toolbar button.btn-accent-orange:hover { background:#bf360c; }
+#toolbar button.btn-accent-purple { background:#6A1B9A; color:#fff; border-color:#6A1B9A; }
+#toolbar button.btn-accent-purple:hover { background:#4a148c; }
+#toolbar .toggle-btn.active { background:#1565C0; color:#fff; border-color:#1565C0; }
+
+/* ─── FILE INFO ─── */
+#file-info { padding:4px 10px; background:#f5f5f5; font-size:12px; color:#888; border-bottom:1px solid #ddd; flex-shrink:0; user-select:none; line-height:1.6; }
+#file-name { font-weight:700; font-size:13px; color:#111; }
+#file-stats { font-size:12px; }
+.file-stat-dist-label { font-weight:700; color:#111; }
+.file-stat-dist-value { font-weight:700; color:#111; }
+.file-stat-pos { color:#e53935; font-weight:600; }
+.file-stat-neg { color:#0d47a1; font-weight:600; }
+
+/* ─── MAIN LAYOUT (mobile: vertical stack) ─── */
+#main-container { display:flex; flex-direction:column; flex:1; overflow-y:auto; min-height:0; }
+
+#canvas-left { position:relative; display:flex; flex-direction:column; flex:1; overflow:visible; min-height:0; }
+#canvas-container { position:relative; overflow:visible; background:#fff; }
+#profile-canvas { display:block; }
+#wp-labels-overlay { position:absolute; top:0; left:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
+.wp-label { position:absolute; white-space:nowrap; font:10px/12px sans-serif; color:#333; transform:rotate(-90deg); transform-origin:left top; }
+
+/* ─── SIDEBAR (mobile: bottom panel) ─── */
+#sidebar { width:100%; background:#fff; border-top:1px solid #ddd; display:flex; flex-direction:column; overflow:hidden; position:relative; max-height:40vh; min-height:0; }
+#sidebar.collapsed { max-height:0; border-top:none; }
+#sidebar.collapsed #sidebar-content { display:none; }
+#sidebar.collapsed #sidebar-header { border-bottom:none; }
+#sidebar-header { display:flex; align-items:center; padding:6px 8px; border-bottom:1px solid #eee; gap:8px; flex-shrink:0; }
+#sidebar-toggle { width:32px; height:32px; border:1px solid #ccc; border-radius:4px; background:#fafafa; cursor:pointer; font-size:13px; flex-shrink:0; }
+#sidebar-content { padding:8px; flex:1; overflow-y:auto; min-height:0; }
+#sidebar h3 { font-size:12px; color:#666; margin:12px 0 6px; text-transform:uppercase; letter-spacing:1px; display:flex; align-items:center; justify-content:space-between; }
+#sidebar h3 button { font-size:10px; padding:2px 6px; border:1px solid #ccc; border-radius:3px; background:#fafafa; cursor:pointer; text-transform:none; letter-spacing:0; min-height:24px; }
+#sidebar h3 button:hover { background:#ffebee; border-color:#e53935; color:#e53935; }
+#sidebar ul { list-style:none; }
+#sidebar ul li { padding:3px 6px; border-radius:3px; cursor:pointer; font-size:12px; margin-bottom:0; white-space:pre-line; display:flex; align-items:center; min-height:28px; }
+#sidebar ul li:hover { background:#f0f0f0; }
+#sidebar ul li.selected { background:#e3f2fd; color:#1565C0; }
+#sidebar ul li.offtrack { color:#e65100; }
+#sidebar ul li.offtrack span { color:#e65100; }
+.sidebar-del { margin-left:auto; width:28px; height:28px; border:1px solid #ccc; border-radius:4px; background:#fff; cursor:pointer; font-size:12px; line-height:1; text-align:center; padding:0; flex-shrink:0; }
+.sidebar-del:hover { background:#ffebee; border-color:#e53935; color:#e53935; }
+
+/* ─── MODALS ─── */
+#modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index:1000; }
+#modal-overlay.hidden { display:none; }
+#modal-box { background:#fff; border-radius:8px; padding:16px; min-width:280px; max-width:92vw; box-shadow:0 4px 20px rgba(0,0,0,0.3); margin:0 8px; }
+#modal-box.wide { max-width:95vw; }
+#modal-box::-webkit-resizer { width:14px; height:14px; background:linear-gradient(135deg,transparent 0,transparent 50%,#1565C0 50%,#1565C0 60%,transparent 60%); }
+#modal-title { font-size:16px; font-weight:600; margin-bottom:12px; }
+#modal-body { margin-bottom:16px; }
+#modal-label { display:block; font-size:13px; color:#555; margin-bottom:4px; }
+#modal-input { width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:16px; box-sizing:border-box; }
+#modal-buttons { display:flex; gap:8px; justify-content:flex-end; }
+#modal-buttons button { padding:6px 16px; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:13px; background:#fff; color:#333; min-height:32px; }
+#modal-buttons button:hover { background:#e8e8e8; }
+#modal-buttons button.btn-primary { background:#1565C0; color:#fff; border-color:#1565C0; }
+#modal-buttons button.btn-primary:hover { background:#0d47a1; }
+
+/* ─── TABLET / DESKTOP (≥768px) ─── */
+@media (min-width: 768px) {
+  body { height:100vh; overflow:hidden; }
+
+  #toolbar { display:flex; gap:4px 45px; padding:4px 10px; }
+  .toolbar-group { gap:2px; }
+  .group-title { font-size:10px; letter-spacing:0.5px; }
+  .group-buttons { flex-wrap:nowrap; gap:3px; }
+  .group-label { font-size:11px; letter-spacing:0.5px; margin-right:2px; }
+  #toolbar button { padding:5px 10px; font-size:12px; min-height:unset; }
+
+  #file-info { padding:4px 14px; }
+  #file-name { font-size:14px; }
+  #file-stats { font-size:13px; }
+
+  #main-container { flex-direction:row; overflow:hidden; }
+
+  #canvas-left { overflow:hidden; }
+  #canvas-container { position:absolute; bottom:0; left:0; right:0; }
+
+  .wp-label { font:11px/12px sans-serif; }
+
+  #sidebar { width:260px; min-width:260px; max-height:unset; border-top:none; border-left:1px solid #ddd; }
+  #sidebar.collapsed { width:32px; min-width:32px; max-height:unset; border-top:none; }
+  #sidebar.collapsed #sidebar-content { display:none; }
+  #sidebar.collapsed #sidebar-header { border-bottom:1px solid #eee; }
+  #sidebar-toggle { width:24px; height:24px; font-size:12px; }
+  #sidebar-content { padding:12px; }
+  #sidebar h3 { font-size:13px; margin:16px 0 8px; }
+  #sidebar ul li { padding:1px 6px; min-height:unset; }
+  .sidebar-del { width:20px; height:20px; font-size:11px; }
+
+  #modal-box { padding:20px; min-width:320px; max-width:420px; margin:0; }
+  #modal-box.wide { max-width:700px; }
+  #modal-input { font-size:14px; }
+}

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Editor de Perfiles Topograficos</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="toolbar">
+<div class="toolbar-group">
+<span class="group-title">Archivo</span>
+<div class="group-buttons">
+<button id="btn-open" title="Abrir GPX / KML">Abrir GPX / KML</button>
+<button id="btn-save-gpx" title="Guardar copia del track con WP (GPX/KML)" class="btn-primary">Guardar</button>
+<button id="btn-export" title="Exportar" class="btn-primary">Exportar</button>
+</div>
+</div>
+<div class="toolbar-group">
+<span class="group-title">Herramientas</span>
+<div class="group-buttons">
+<button id="btn-analyze" title="Detectar automaticamente segmentos de subida/bajada" class="btn-accent-green">Detectar Zonas</button>
+<button id="btn-add-wp" title="+Waypoint">+WP</button>
+<button id="btn-add-wp-if" title="Crear Inicio y Final">+WP Inicio/Final</button>
+<button id="btn-add-zone" title="+Zona">+Zona</button>
+<button id="btn-informes" title="Generar informe de WP" class="btn-accent-orange">Informe WP</button>
+<button id="btn-desnivel" title="Configurar el cálculo del desnivel" class="btn-accent-purple">Desnivel</button>
+</div>
+</div>
+
+<div class="toolbar-group">
+<span class="group-title">Visibilidad</span>
+<div class="group-buttons">
+                <button id="btn-toggle-grid" title="Cuadricula" class="toggle-btn">Cuadricula</button>
+                <button id="btn-toggle-wp" title="WP" class="toggle-btn">WP</button>
+                <button id="btn-toggle-zones" title="Zonas" class="toggle-btn">Zonas</button>
+                <button id="btn-toggle-lineas" title="Lineas verticales WP" class="toggle-btn">Lineas</button>
+                <button id="btn-toggle-simbolos" title="Simbolos WP" class="toggle-btn">Simbolos</button>
+                <button id="btn-toggle-nombres" title="Nombres WP" class="toggle-btn">Nombres</button>
+</div>
+</div>
+<div class="toolbar-group">
+<span class="group-title">Mapa</span>
+<div class="group-buttons">
+<button id="btn-mapa" title="Abrir mapa OSM del recorrido">Mapa</button>
+</div>
+</div>
+<div class="toolbar-group">
+<span class="group-title">Ayuda</span>
+<div class="group-buttons">
+<button id="btn-help" title="Ayuda de la aplicacion">?</button>
+</div>
+</div>
+</div>
+<div id="file-info">
+  <div><span id="file-name">Sin archivo cargado</span></div>
+  <div id="file-stats"></div>
+</div>
+<div id="main-container">
+<div id="canvas-left">
+<div id="canvas-container">
+<canvas id="profile-canvas"></canvas>
+<div id="wp-labels-overlay"></div>
+</div>
+</div>
+<div id="sidebar">
+<div id="sidebar-header">
+<button id="sidebar-toggle"><</button>
+<span>Panel</span>
+</div>
+<div id="sidebar-content">
+    <h3>Waypoints <button id="btn-del-all-wp" title="Eliminar todos los WP">Eliminar todos</button></h3>
+    <ul id="wp-list"></ul>
+    <h3>Zonas <button id="btn-del-all-zones" title="Eliminar todas las zonas">Eliminar todas</button></h3>
+    <ul id="zone-list"></ul>
+</div>
+</div>
+</div>
+  <div id="modal-overlay" class="hidden">
+    <div id="modal-box">
+      <div id="modal-title"></div>
+      <div id="modal-body"><label id="modal-label"></label><input id="modal-input" type="text"></div>
+      <div id="modal-buttons"><button id="modal-ok">OK</button><button id="modal-cancel" autofocus>Cancelar</button></div>
+    </div>
+  </div>
+  <script src="gpxParser.js"></script>
+<script src="kmlParser.js"></script>
+<script src="grid.js"></script>
+<script src="profileCanvas.js"></script>
+<script src="export.js"></script>
+<script src="elevation.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
