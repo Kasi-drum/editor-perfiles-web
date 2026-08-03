@@ -1,5 +1,7 @@
 # Editor de Perfiles Topográficos — Versión Web
 
+![Desplegado en Vercel](https://img.shields.io/badge/Vercel-desplegado-000000?logo=vercel&logoColor=white)
+
 Editor interactivo de perfiles topográficos a partir de tracks **GPX/KML**: visualización del perfil con desnivel, detección de zonas de subida/bajada, gestión de waypoints e informe, y un mapa con puntos de interés. Es la versión web del proyecto de escritorio [**editor-perfiles**](https://github.com/Kasi-drum/editor-perfiles).
 
 ## Enlace
@@ -58,3 +60,7 @@ Es una aplicación **estática** (HTML/CSS/JS, sin paso de build): la carpeta se
 - Los POIs se obtienen de **Overpass API** (OpenStreetMap).
 - Requiere conexión a internet para cargar tiles del mapa, POIs y el ejemplo `datos-ejemplo.gpx`.
 - Versión de escritorio (Electron/AppImage): [editor-perfiles](https://github.com/Kasi-drum/editor-perfiles).
+
+## Licencia
+
+MIT · © 2026 Kasi-drum. Ver [LICENSE](LICENSE).
