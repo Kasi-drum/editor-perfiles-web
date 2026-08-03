@@ -4,6 +4,8 @@
 
 Editor interactivo de perfiles topográficos a partir de tracks **GPX/KML**: visualización del perfil con desnivel, detección de zonas de subida/bajada, gestión de waypoints e informe, y un mapa con puntos de interés. Es la versión web del proyecto de escritorio [**editor-perfiles**](https://github.com/Kasi-drum/editor-perfiles).
 
+![Editor de Perfiles Topográficos — ventana principal](docs/screenshots/index.png)
+
 ## Enlace
 
 - **Producción (Vercel):** [https://editor-perfiles-web.vercel.app](https://editor-perfiles-web.vercel.app)
