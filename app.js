@@ -7,6 +7,8 @@ var elevationProfile = null; // cache del perfil completo
 var originalFileXml = null;
 var selectedTrackName = null;
 var originalFileFormat = null;
+var originalTracks = null;
+var originalWaypoints = null;
 
 function showModal(title, label, defaultValue) {
   return new Promise(function(resolve) {
@@ -733,6 +735,8 @@ function openGPX() {
         originalFileXml = ev.target.result;
         selectedTrackName = sel.name;
         originalFileFormat = isKml ? 'kml' : 'gpx';
+        originalTracks = data.tracks;
+        originalWaypoints = data.waypoints;
         data = {
           trackpoints: sel.trackpoints,
           totalDistance: sel.totalDistance,
@@ -750,6 +754,8 @@ function openGPX() {
         originalFileXml = null;
         selectedTrackName = null;
         originalFileFormat = null;
+        originalTracks = null;
+        originalWaypoints = null;
       }
       currentData = data;
       profileCanvas.waypoints = [];
@@ -1504,30 +1510,50 @@ function renumberWaypoints() {
   }
 }
 function generateGPX() {
-  if (originalFileXml && originalFileFormat === 'gpx' && selectedTrackName) {
-    return generateGPXFromOriginal();
-  }
   var xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
   xml += '<gpx version="1.1" creator="EditorPerfiles" xmlns="http://www.topografix.com/GPX/1/1" xmlns:zns="http://editorperfiles/zones">\n';
-  var tps = profileCanvas.trackpoints;
-  if (tps.length) {
-    xml += '  <trk>\n';
-    var zones = profileCanvas.zones;
-    if (zones && zones.length) {
-      xml += '    <extensions>\n      <zns:zones>\n';
-      for (var zi = 0; zi < zones.length; zi++) {
-        var z = zones[zi];
-        xml += '        <zns:zone id="' + escXml(z.id) + '" name="' + escXml(z.name) + '" start="' + z.startDist.toFixed(3) + '" end="' + z.endDist.toFixed(3) + '" startEle="' + z.startEle.toFixed(1) + '" endEle="' + z.endEle.toFixed(1) + '"/>\n';
+  var zones = profileCanvas.zones;
+  if (originalTracks && selectedTrackName) {
+    for (var ti = 0; ti < originalTracks.length; ti++) {
+      var trk = originalTracks[ti];
+      var tps = trk.name === selectedTrackName ? profileCanvas.trackpoints : trk.trackpoints;
+      xml += '  <trk>\n    <name>' + escXml(trk.name) + '</name>\n';
+      if (trk.name === selectedTrackName && zones && zones.length) {
+        xml += '    <extensions>\n      <zns:zones>\n';
+        for (var zi = 0; zi < zones.length; zi++) {
+          var z = zones[zi];
+          xml += '        <zns:zone id="' + escXml(z.id) + '" name="' + escXml(z.name) + '" start="' + z.startDist.toFixed(3) + '" end="' + z.endDist.toFixed(3) + '" startEle="' + z.startEle.toFixed(1) + '" endEle="' + z.endEle.toFixed(1) + '"/>\n';
+        }
+        xml += '      </zns:zones>\n    </extensions>\n';
       }
-      xml += '      </zns:zones>\n    </extensions>\n';
+      xml += '    <trkseg>\n';
+      for (var i = 0; i < tps.length; i++) {
+        xml += '      <trkpt lat="' + tps[i].lat.toFixed(7) + '" lon="' + tps[i].lng.toFixed(7) + '">\n';
+        if (tps[i].ele !== undefined) xml += '        <ele>' + tps[i].ele.toFixed(1) + '</ele>\n';
+        xml += '      </trkpt>\n';
+      }
+      xml += '    </trkseg>\n  </trk>\n';
     }
-    xml += '    <trkseg>\n';
-    for (var i = 0; i < tps.length; i++) {
-      xml += '      <trkpt lat="' + tps[i].lat.toFixed(7) + '" lon="' + tps[i].lng.toFixed(7) + '">\n';
-      if (tps[i].ele !== undefined) xml += '        <ele>' + tps[i].ele.toFixed(1) + '</ele>\n';
-      xml += '      </trkpt>\n';
+  } else {
+    var tps = profileCanvas.trackpoints;
+    if (tps.length) {
+      xml += '  <trk>\n';
+      if (zones && zones.length) {
+        xml += '    <extensions>\n      <zns:zones>\n';
+        for (var zi = 0; zi < zones.length; zi++) {
+          var z = zones[zi];
+          xml += '        <zns:zone id="' + escXml(z.id) + '" name="' + escXml(z.name) + '" start="' + z.startDist.toFixed(3) + '" end="' + z.endDist.toFixed(3) + '" startEle="' + z.startEle.toFixed(1) + '" endEle="' + z.endEle.toFixed(1) + '"/>\n';
+        }
+        xml += '      </zns:zones>\n    </extensions>\n';
+      }
+      xml += '    <trkseg>\n';
+      for (var i = 0; i < tps.length; i++) {
+        xml += '      <trkpt lat="' + tps[i].lat.toFixed(7) + '" lon="' + tps[i].lng.toFixed(7) + '">\n';
+        if (tps[i].ele !== undefined) xml += '        <ele>' + tps[i].ele.toFixed(1) + '</ele>\n';
+        xml += '      </trkpt>\n';
+      }
+      xml += '    </trkseg>\n  </trk>\n';
     }
-    xml += '    </trkseg>\n  </trk>\n';
   }
   var wps = profileCanvas.waypoints;
   for (var i = 0; i < wps.length; i++) {
@@ -1541,79 +1567,12 @@ function generateGPX() {
   return xml;
 }
 function generateGPXFromOriginal() {
-  var parser = new DOMParser();
-  var doc = parser.parseFromString(originalFileXml, 'text/xml');
-  var trks = doc.querySelectorAll('trk');
-  for (var i = 0; i < trks.length; i++) {
-    var nameEl = trks[i].querySelector('name');
-    if (nameEl && nameEl.textContent.trim() === selectedTrackName) {
-      var existingExt = trks[i].querySelector('extensions');
-      if (existingExt) trks[i].removeChild(existingExt);
-      var zones = profileCanvas.zones;
-      if (zones && zones.length) {
-        var extEl = doc.createElementNS('http://editorperfiles/zones', 'extensions');
-        var znsEl = doc.createElementNS('http://editorperfiles/zones', 'zns:zones');
-        for (var zi = 0; zi < zones.length; zi++) {
-          var z = zones[zi];
-          var zoneEl = doc.createElementNS('http://editorperfiles/zones', 'zns:zone');
-          zoneEl.setAttribute('id', z.id);
-          zoneEl.setAttribute('name', z.name);
-          zoneEl.setAttribute('start', z.startDist.toFixed(3));
-          zoneEl.setAttribute('end', z.endDist.toFixed(3));
-          zoneEl.setAttribute('startEle', z.startEle.toFixed(1));
-          zoneEl.setAttribute('endEle', z.endEle.toFixed(1));
-          znsEl.appendChild(zoneEl);
-        }
-        extEl.appendChild(znsEl);
-        trks[i].appendChild(extEl);
-      }
-      var oldSegs = trks[i].querySelectorAll('trkseg');
-      for (var si = oldSegs.length - 1; si >= 0; si--) trks[i].removeChild(oldSegs[si]);
-      var segEl = doc.createElement('trkseg');
-      var tps = profileCanvas.trackpoints;
-      for (var ti = 0; ti < tps.length; ti++) {
-        var ptEl = doc.createElement('trkpt');
-        ptEl.setAttribute('lat', tps[ti].lat.toFixed(7));
-        ptEl.setAttribute('lon', tps[ti].lng.toFixed(7));
-        if (tps[ti].ele !== undefined) {
-          var eleEl = doc.createElement('ele');
-          eleEl.textContent = tps[ti].ele.toFixed(1);
-          ptEl.appendChild(eleEl);
-        }
-        segEl.appendChild(ptEl);
-      }
-      trks[i].appendChild(segEl);
-      break;
-    }
-  }
-  var oldWpts = doc.querySelectorAll('wpt');
-  for (var i = oldWpts.length - 1; i >= 0; i--) oldWpts[i].parentNode.removeChild(oldWpts[i]);
-  var wps = profileCanvas.waypoints;
-  for (var i = 0; i < wps.length; i++) {
-    if (wps[i].lat == null || wps[i].lng == null || isNaN(wps[i].lat) || isNaN(wps[i].lng)) continue;
-    var wptEl = doc.createElement('wpt');
-    wptEl.setAttribute('lat', wps[i].lat.toFixed(7));
-    wptEl.setAttribute('lon', wps[i].lng.toFixed(7));
-    if (wps[i].ele !== undefined) {
-      var eleEl = doc.createElement('ele');
-      eleEl.textContent = wps[i].ele.toFixed(1);
-      wptEl.appendChild(eleEl);
-    }
-    var wNameEl = doc.createElement('name');
-    wNameEl.textContent = wps[i].name;
-    wptEl.appendChild(wNameEl);
-    doc.documentElement.appendChild(wptEl);
-  }
-  var serializer = new XMLSerializer();
-  return '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(doc);
+  return generateGPX();
 }
 function escXml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
 }
 function generateKML() {
-  if (originalFileXml && originalFileFormat === 'kml' && selectedTrackName) {
-    return generateKMLFromOriginal();
-  }
   var xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
   xml += '<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n';
   xml += '  <name>' + escXml(gpxFileName) + '</name>\n';
@@ -1623,15 +1582,33 @@ function generateKML() {
       return {id: z.id, name: z.name, startDist: z.startDist, endDist: z.endDist, startEle: z.startEle, endEle: z.endEle};
     }))) + '</value>\n    </Data>\n  </ExtendedData>\n';
   }
-  var tps = profileCanvas.trackpoints;
-  if (tps.length) {
-    xml += '  <Placemark>\n    <name>Recorrido</name>\n    <LineString>\n      <coordinates>\n';
-    for (var i = 0; i < tps.length; i++) {
-      xml += '        ' + tps[i].lng.toFixed(7) + ',' + tps[i].lat.toFixed(7);
-      if (tps[i].ele !== undefined) xml += ',' + tps[i].ele.toFixed(1);
-      xml += '\n';
+  if (originalTracks && selectedTrackName) {
+    for (var ti = 0; ti < originalTracks.length; ti++) {
+      var trk = originalTracks[ti];
+      var tps = trk.name === selectedTrackName ? profileCanvas.trackpoints : trk.trackpoints;
+      xml += '  <Placemark>\n    <name>' + escXml(trk.name) + '</name>\n';
+      if (originalFileFormat === 'kml') {
+        xml += '    <Style>\n      <LineStyle>\n        <color>ff0000ff</color>\n        <width>3</width>\n      </LineStyle>\n    </Style>\n';
+      }
+      xml += '    <LineString>\n      <coordinates>\n';
+      for (var i = 0; i < tps.length; i++) {
+        xml += '        ' + tps[i].lng.toFixed(7) + ',' + tps[i].lat.toFixed(7);
+        if (tps[i].ele !== undefined) xml += ',' + tps[i].ele.toFixed(1);
+        xml += '\n';
+      }
+      xml += '      </coordinates>\n    </LineString>\n  </Placemark>\n';
     }
-    xml += '      </coordinates>\n    </LineString>\n  </Placemark>\n';
+  } else {
+    var tps = profileCanvas.trackpoints;
+    if (tps.length) {
+      xml += '  <Placemark>\n    <name>Recorrido</name>\n    <LineString>\n      <coordinates>\n';
+      for (var i = 0; i < tps.length; i++) {
+        xml += '        ' + tps[i].lng.toFixed(7) + ',' + tps[i].lat.toFixed(7);
+        if (tps[i].ele !== undefined) xml += ',' + tps[i].ele.toFixed(1);
+        xml += '\n';
+      }
+      xml += '      </coordinates>\n    </LineString>\n  </Placemark>\n';
+    }
   }
   var wps = profileCanvas.waypoints;
   for (var i = 0; i < wps.length; i++) {
@@ -1645,99 +1622,7 @@ function generateKML() {
   return xml;
 }
 function generateKMLFromOriginal() {
-  function findByLocalName(el, name) {
-    var result = [];
-    for (var i = 0; i < el.childNodes.length; i++) {
-      var c = el.childNodes[i];
-      if (c.nodeType === 1 && c.localName === name) result.push(c);
-    }
-    return result;
-  }
-  function findByLocalNameDeep(el, name) {
-    var result = [];
-    var stack = [el];
-    while (stack.length) {
-      var cur = stack.pop();
-      for (var i = 0; i < cur.childNodes.length; i++) {
-        var c = cur.childNodes[i];
-        if (c.nodeType === 1) {
-          if (c.localName === name) result.push(c);
-          stack.push(c);
-        }
-      }
-    }
-    return result;
-  }
-  var parser = new DOMParser();
-  var doc = parser.parseFromString(originalFileXml, 'text/xml');
-  var placemarks = findByLocalNameDeep(doc, 'Placemark');
-  for (var i = 0; i < placemarks.length; i++) {
-    var pm = placemarks[i];
-    var nameEls = findByLocalName(pm, 'name');
-    var nameEl = nameEls.length ? nameEls[0] : null;
-    if (nameEl && nameEl.textContent.trim() === selectedTrackName) {
-      var lsEls = findByLocalName(pm, 'LineString');
-      var oldLS = lsEls.length ? lsEls[0] : null;
-      if (oldLS) {
-        var coordsEls = findByLocalName(oldLS, 'coordinates');
-        var oldCoords = coordsEls.length ? coordsEls[0] : null;
-        if (oldCoords) {
-          var coordsText = '';
-          var tps = profileCanvas.trackpoints;
-          for (var ti = 0; ti < tps.length; ti++) {
-            coordsText += tps[ti].lng.toFixed(7) + ',' + tps[ti].lat.toFixed(7);
-            if (tps[ti].ele !== undefined) coordsText += ',' + tps[ti].ele.toFixed(1);
-            coordsText += '\n';
-          }
-          oldCoords.textContent = coordsText;
-        }
-      }
-      break;
-    }
-  }
-  var documentEls = findByLocalNameDeep(doc, 'Document');
-  var documentEl = documentEls.length ? documentEls[0] : null;
-  if (documentEl) {
-    var oldExtEls = findByLocalName(documentEl, 'ExtendedData');
-    if (oldExtEls.length) documentEl.removeChild(oldExtEls[0]);
-    var zones = profileCanvas.zones;
-    if (zones && zones.length) {
-      var extEl = doc.createElementNS('http://www.opengis.net/kml/2.2', 'ExtendedData');
-      var dataEl = doc.createElementNS('http://www.opengis.net/kml/2.2', 'Data');
-      dataEl.setAttribute('name', 'editorperfiles_zones');
-      var valueEl = doc.createElementNS('http://www.opengis.net/kml/2.2', 'value');
-      valueEl.textContent = JSON.stringify(zones.map(function(z) {
-        return {id: z.id, name: z.name, startDist: z.startDist, endDist: z.endDist, startEle: z.startEle, endEle: z.endEle};
-      }));
-      dataEl.appendChild(valueEl);
-      extEl.appendChild(dataEl);
-      documentEl.appendChild(extEl);
-    }
-    var oldWpPms = [];
-    var allPms = findByLocalName(documentEl, 'Placemark');
-    for (var i = 0; i < allPms.length; i++) {
-      var pts = findByLocalName(allPms[i], 'Point');
-      if (pts.length) oldWpPms.push(allPms[i]);
-    }
-    for (var i = oldWpPms.length - 1; i >= 0; i--) oldWpPms[i].parentNode.removeChild(oldWpPms[i]);
-    var wps = profileCanvas.waypoints;
-    for (var i = 0; i < wps.length; i++) {
-      if (wps[i].lat == null || wps[i].lng == null || isNaN(wps[i].lat) || isNaN(wps[i].lng)) continue;
-      var wpPm = doc.createElementNS('http://www.opengis.net/kml/2.2', 'Placemark');
-      var wpName = doc.createElementNS('http://www.opengis.net/kml/2.2', 'name');
-      wpName.textContent = wps[i].name;
-      wpPm.appendChild(wpName);
-      var point = doc.createElementNS('http://www.opengis.net/kml/2.2', 'Point');
-      var coords = doc.createElementNS('http://www.opengis.net/kml/2.2', 'coordinates');
-      coords.textContent = wps[i].lng.toFixed(7) + ',' + wps[i].lat.toFixed(7);
-      if (wps[i].ele !== undefined) coords.textContent += ',' + wps[i].ele.toFixed(1);
-      point.appendChild(coords);
-      wpPm.appendChild(point);
-      documentEl.appendChild(wpPm);
-    }
-  }
-  var serializer = new XMLSerializer();
-  return '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(doc);
+  return generateKML();
 }
 function chooseSaveFormat() {
   return new Promise(function(resolve) {
