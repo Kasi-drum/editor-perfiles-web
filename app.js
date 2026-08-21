@@ -1739,8 +1739,6 @@ function generateKMLFromOriginal() {
   var serializer = new XMLSerializer();
   return '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(doc);
 }
-  return '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(doc);
-}
 function chooseSaveFormat() {
   return new Promise(function(resolve) {
     var overlay = document.getElementById("modal-overlay");
