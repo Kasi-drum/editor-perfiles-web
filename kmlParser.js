@@ -1,61 +1,75 @@
 var kmlParser = {
-  parse: function(xmlString) {
-    const parser = new DOMParser();
-    const xml = parser.parseFromString(xmlString, 'text/xml');
-    const trackpoints = [];
+  parseTracks: function(xmlString) {
+    var parser = new DOMParser();
+    var xml = parser.parseFromString(xmlString, 'text/xml');
 
-    const coordsEls = xml.getElementsByTagName('coordinates');
-    for (let ci = 0; ci < coordsEls.length; ci++) {
-      const el = coordsEls[ci];
-      if (!hasAncestor(el, 'LineString')) continue;
-      if (hasAncestor(el, 'Point')) continue;
-      addCoordsPoints(trackpoints, el.textContent);
-    }
-
-    const gxCoords = xml.getElementsByTagName('gx:coord');
-    for (let gi = 0; gi < gxCoords.length; gi++) {
-      addGxCoord(trackpoints, gxCoords[gi].textContent);
-    }
-
-    const waypoints = [];
-    const placemarks = xml.getElementsByTagName('Placemark');
-    for (let pi = 0; pi < placemarks.length; pi++) {
-      const pm = placemarks[pi];
-      const point = pm.getElementsByTagName('Point')[0];
-      if (!point) continue;
-      const coords = point.getElementsByTagName('coordinates')[0];
-      if (!coords) continue;
-      const parts = coords.textContent.trim().split(/\s+/);
-      if (!parts.length) continue;
-      const c = parts[0].split(',');
-      const lat = parseFloat(c[1]);
-      const lng = parseFloat(c[0]);
-      if (isNaN(lat) || isNaN(lng)) continue;
-      const nameEl = pm.getElementsByTagName('name')[0];
-      const name = nameEl ? nameEl.textContent : '';
-      const hasEle = c.length > 2 && !isNaN(parseFloat(c[2]));
-      const ele = hasEle ? parseFloat(c[2]) : null;
-      waypoints.push({lat: lat, lng: lng, name: name, ele: ele, hasEle: hasEle});
-    }
-
-    var accumulatedDist = 0;
-    for (var i = 0; i < trackpoints.length; i++) {
-      if (i > 0) {
-        accumulatedDist += haversine(trackpoints[i-1].lat, trackpoints[i-1].lng, trackpoints[i].lat, trackpoints[i].lng);
-      }
-      trackpoints[i].dist = accumulatedDist;
-    }
-    var elevations = trackpoints.map(function(p) { return p.ele; });
-    waypoints.forEach(function(wp) {
-      var nearest = 0, minDist = Infinity;
-      for (var i = 0; i < trackpoints.length; i++) {
-        var d = haversine(wp.lat, wp.lng, trackpoints[i].lat, trackpoints[i].lng);
-        if (d < minDist) { minDist = d; nearest = i; }
-      }
-      wp.dist = trackpoints[nearest].dist;
-      if (!wp.hasEle) wp.ele = trackpoints[nearest].ele;
-    });
+    var placemarks = xml.getElementsByTagName('Placemark');
+    var tracks = [];
+    var allWaypoints = [];
     var zones = [];
+
+    for (var pi = 0; pi < placemarks.length; pi++) {
+      var pm = placemarks[pi];
+      var nameEl = pm.getElementsByTagName('name')[0];
+      var trackName = nameEl && nameEl.textContent ? nameEl.textContent.trim() : 'Track ' + (tracks.length + 1);
+
+      var trackpoints = [];
+
+      var lineStrings = pm.getElementsByTagName('LineString');
+      for (var li = 0; li < lineStrings.length; li++) {
+        var ls = lineStrings[li];
+        var coordsEl = ls.getElementsByTagName('coordinates')[0];
+        if (coordsEl) addCoordsPoints(trackpoints, coordsEl.textContent);
+      }
+
+      var gxCoords = pm.getElementsByTagName('gx:coord');
+      for (var gi = 0; gi < gxCoords.length; gi++) {
+        addGxCoord(trackpoints, gxCoords[gi].textContent);
+      }
+
+      var gxTracks = pm.getElementsByTagName('gx:Track');
+      for (var ti = 0; ti < gxTracks.length; ti++) {
+        var gxtc = gxTracks[ti].getElementsByTagName('gx:coord');
+        for (var gi = 0; gi < gxtc.length; gi++) {
+          addGxCoord(trackpoints, gxtc[gi].textContent);
+        }
+      }
+
+      if (trackpoints.length > 0) {
+        var accumulatedDist = 0;
+        for (var i = 0; i < trackpoints.length; i++) {
+          if (i > 0) {
+            accumulatedDist += haversine(trackpoints[i-1].lat, trackpoints[i-1].lng, trackpoints[i].lat, trackpoints[i].lng);
+          }
+          trackpoints[i].dist = accumulatedDist;
+        }
+        var elevations = trackpoints.map(function(p) { return p.ele; });
+        tracks.push({
+          name: trackName,
+          trackpoints: trackpoints,
+          totalDistance: accumulatedDist,
+          maxEle: elevations.length ? Math.max.apply(null, elevations) : 0,
+          minEle: elevations.length ? Math.min.apply(null, elevations) : 0
+        });
+      }
+
+      var pmWaypoints = pm.getElementsByTagName('Point');
+      for (var wi = 0; wi < pmWaypoints.length; wi++) {
+        var wpCoords = pmWaypoints[wi].getElementsByTagName('coordinates')[0];
+        if (!wpCoords) continue;
+        var parts = wpCoords.textContent.trim().split(/\s+/);
+        if (!parts.length) continue;
+        var c = parts[0].split(',');
+        if (c.length < 2) continue;
+        var lat = parseFloat(c[1]);
+        var lng = parseFloat(c[0]);
+        if (isNaN(lat) || isNaN(lng)) continue;
+        var hasEle = c.length > 2 && !isNaN(parseFloat(c[2]));
+        var ele = hasEle ? parseFloat(c[2]) : null;
+        allWaypoints.push({lat: lat, lng: lng, name: trackName, ele: ele, hasEle: hasEle});
+      }
+    }
+
     var dataEls = xml.getElementsByTagName('Data');
     for (var di = 0; di < dataEls.length; di++) {
       if (dataEls[di].getAttribute('name') === 'editorperfiles_zones') {
@@ -69,13 +83,44 @@ var kmlParser = {
         break;
       }
     }
+
+    return { tracks: tracks, waypoints: allWaypoints, zones: zones };
+  },
+  attachWaypoints: function(waypoints, trackpoints) {
+    if (!trackpoints.length) return;
+    waypoints.forEach(function(wp) {
+      var nearest = 0, minDist = Infinity;
+      for (var i = 0; i < trackpoints.length; i++) {
+        var d = haversine(wp.lat, wp.lng, trackpoints[i].lat, trackpoints[i].lng);
+        if (d < minDist) { minDist = d; nearest = i; }
+      }
+      wp.dist = trackpoints[nearest].dist;
+      if (!wp.hasEle) wp.ele = trackpoints[nearest].ele;
+    });
+  },
+  parse: function(xmlString) {
+    var parsed = this.parseTracks(xmlString);
+
+    if (parsed.tracks.length > 1) {
+      return {
+        tracks: parsed.tracks,
+        waypoints: parsed.waypoints,
+        zones: parsed.zones,
+        multiple: true
+      };
+    }
+
+    var trackpoints = parsed.tracks.length === 1 ? parsed.tracks[0].trackpoints : [];
+    var accumulatedDist = trackpoints.length ? trackpoints[trackpoints.length - 1].dist : 0;
+    var elevations = trackpoints.map(function(p) { return p.ele; });
+    this.attachWaypoints(parsed.waypoints, trackpoints);
     return {
       trackpoints: trackpoints,
       totalDistance: accumulatedDist,
-      maxEle: trackpoints.length ? Math.max.apply(null, elevations) : 0,
-      minEle: trackpoints.length ? Math.min.apply(null, elevations) : 0,
-      waypoints: waypoints,
-      zones: zones
+      maxEle: elevations.length ? Math.max.apply(null, elevations) : 0,
+      minEle: elevations.length ? Math.min.apply(null, elevations) : 0,
+      waypoints: parsed.waypoints,
+      zones: parsed.zones
     };
   }
 };

@@ -87,6 +87,55 @@ function showConfirm(title, msg) {
     document.getElementById("modal-cancel").onclick = function() { cleanup(); resolve(false); };
   });
 }
+function showTrackSelector(tracks) {
+  return new Promise(function(resolve) {
+    var overlay = document.getElementById("modal-overlay");
+    var box = document.getElementById("modal-box");
+    var body = document.getElementById("modal-body");
+    var btns = document.getElementById("modal-buttons");
+    box.classList.remove("wide");
+    box.style.position = "";
+    box.style.top = "";
+    box.style.left = "";
+    box.style.cursor = "";
+    box.style.resize = "";
+    box.style.overflow = "";
+    box.style.minWidth = "";
+    box.style.minHeight = "";
+    box.style.maxWidth = "";
+    box.style.maxHeight = "";
+    document.getElementById("modal-title").style.cursor = "";
+    document.getElementById("modal-title").textContent = "Selecciona un track";
+    var html = '<div class="track-list">';
+    tracks.forEach(function(tr, i) {
+      html += '<button type="button" class="track-option" data-index="' + i + '">'
+            + '<span class="track-name">' + escXml(tr.name) + '</span>'
+            + '<span class="track-meta">' + tr.totalDistance.toFixed(2) + ' km &middot; ' + tr.trackpoints.length + ' puntos</span>'
+            + '</button>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+    btns.innerHTML = '<button id="modal-cancel" class="btn-primary" autofocus>Cancelar</button>';
+    overlay.style.display = "";
+    overlay.classList.remove("hidden");
+    function cleanup() {
+      overlay.classList.add("hidden");
+      document.getElementById("modal-cancel").onclick = null;
+      document.onkeydown = null;
+      body.innerHTML = '<label id="modal-label"></label><input id="modal-input" type="text">';
+    }
+    var opts = body.querySelectorAll(".track-option");
+    for (var i = 0; i < opts.length; i++) {
+      opts[i].onclick = function() {
+        var idx = parseInt(this.getAttribute("data-index"), 10);
+        cleanup();
+        resolve(tracks[idx]);
+      };
+    }
+    document.getElementById("modal-cancel").onclick = function() { cleanup(); resolve(null); };
+    document.onkeydown = function(e) { if (e.key === "Escape") { cleanup(); resolve(null); } };
+  });
+}
 
 function showHelp() {
   var overlay = document.getElementById("modal-overlay");
@@ -664,11 +713,33 @@ function openGPX() {
   input.onchange = function(e) {
     var file = e.target.files[0];
     if (!file) return;
+    var prevName = gpxFileName;
     gpxFileName = file.name.replace(/\.(gpx|kml)$/i, '');
     document.getElementById("file-name").textContent = gpxFileName;
     var reader = new FileReader();
     reader.onload = async function(ev) {
       var data = /\.kml$/i.test(file.name) ? kmlParser.parse(ev.target.result) : gpxParser.parse(ev.target.result);
+      if (data.multiple && data.tracks && data.tracks.length > 1) {
+        var sel = await showTrackSelector(data.tracks);
+        if (!sel) {
+          gpxFileName = prevName;
+          document.getElementById("file-name").textContent = gpxFileName;
+          return;
+        }
+        data = {
+          trackpoints: sel.trackpoints,
+          totalDistance: sel.totalDistance,
+          maxEle: sel.maxEle,
+          minEle: sel.minEle,
+          waypoints: data.waypoints,
+          zones: data.zones
+        };
+        if (/\.gpx$/i.test(file.name)) {
+          gpxParser.attachWaypoints(data.waypoints, data.trackpoints);
+        } else {
+          kmlParser.attachWaypoints(data.waypoints, data.trackpoints);
+        }
+      }
       currentData = data;
       profileCanvas.waypoints = [];
       profileCanvas.zones = [];
@@ -966,9 +1037,10 @@ function showInformes() {
   overlay.style.display = "block";
   document.getElementById("modal-title").textContent = "INFORME - " + gpxFileName;
   if (!isMobile) document.getElementById("modal-title").style.cursor = "move";
-  document.getElementById("modal-label").textContent = "";
+  var lbl = document.getElementById("modal-label");
+  if (lbl) lbl.textContent = "";
   var input = document.getElementById("modal-input");
-  input.style.display = "none";
+  if (input) input.style.display = "none";
   btns.innerHTML = '<button id="inf-btn-export-png" style="background:#1565C0;color:#fff;border-color:#1565C0">PNG</button><button id="inf-btn-export-jpg" style="background:#1565C0;color:#fff;border-color:#1565C0">JPG</button><button id="inf-btn-export-svg" style="background:#1565C0;color:#fff;border-color:#1565C0">SVG</button><button id="inf-btn-close" class="btn-primary">Cerrar</button>';
   var body = document.getElementById("modal-body");
   var oldTable = document.getElementById("inf-table-wrap");
