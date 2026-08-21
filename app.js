@@ -459,7 +459,7 @@ function initApp() {
       var name = await showModal("Nuevo WP", "Nombre (" + dist.toFixed(2) + " km):");
       if (name) {
         var coords = interpolateCoords(dist);
-        profileCanvas.waypoints.push({name:name, dist:parseFloat(dist.toFixed(3)), ele:profileCanvas.interpolateEle(dist), lat:coords.lat, lng:coords.lng});
+        profileCanvas.waypoints.push({name:name, dist:parseFloat(dist.toFixed(3)), ele:profileCanvas.interpolateEle(dist), lat:coords.lat, lng:coords.lng, trackName: selectedTrackName || null});
         renumberWaypoints();
         profileCanvas.render();
         updateSidebar();
@@ -533,7 +533,7 @@ function initApp() {
       var wpData = JSON.parse(e.newValue);
       try { localStorage.removeItem("mapa-new-wp"); } catch(ex) {}
       if (!wpData || !wpData.name) return;
-      profileCanvas.waypoints.push({name:wpData.name, dist:wpData.dist, ele:wpData.ele, lat:wpData.lat, lng:wpData.lng, offTrackDist: wpData.offTrackDist || 0, poiType: wpData.poiType || null});
+      profileCanvas.waypoints.push({name:wpData.name, dist:wpData.dist, ele:wpData.ele, lat:wpData.lat, lng:wpData.lng, offTrackDist: wpData.offTrackDist || 0, poiType: wpData.poiType || null, trackName: selectedTrackName || null});
       renumberWaypoints();
       profileCanvas.render();
       updateSidebar();
@@ -742,13 +742,16 @@ function openGPX() {
           totalDistance: sel.totalDistance,
           maxEle: sel.maxEle,
           minEle: sel.minEle,
-          waypoints: data.waypoints,
+          waypoints: sel.waypoints || [],
           zones: data.zones
         };
         if (!isKml) {
           gpxParser.attachWaypoints(data.waypoints, data.trackpoints);
         } else {
           kmlParser.attachWaypoints(data.waypoints, data.trackpoints);
+        }
+        for (var wi = 0; wi < data.waypoints.length; wi++) {
+          data.waypoints[wi].trackName = selectedTrackName;
         }
       } else {
         originalFileXml = null;
@@ -764,7 +767,7 @@ function openGPX() {
       zoneCounter = 0;
       if (data.waypoints) {
         data.waypoints.sort(function(a, b) { return a.dist - b.dist; }).forEach(function(wp) {
-          profileCanvas.waypoints.push({name: wp.name, dist: wp.dist, ele: wp.ele, lat: wp.lat, lng: wp.lng});
+          profileCanvas.waypoints.push({name: wp.name, dist: wp.dist, ele: wp.ele, lat: wp.lat, lng: wp.lng, trackName: wp.trackName || selectedTrackName || null});
         });
       }
       profileCanvas.totalDistance = data.totalDistance;
@@ -1221,7 +1224,7 @@ async function addWaypoint() {
   var dist = await showModal("Nuevo Waypoint", "Distancia (km):");
   if (dist === null) return;
   var coords = interpolateCoords(parseFloat(dist));
-  profileCanvas.waypoints.push({name:name, dist:parseFloat(dist), ele:interpolateElevation(parseFloat(dist)), lat:coords.lat, lng:coords.lng});
+  profileCanvas.waypoints.push({name:name, dist:parseFloat(dist), ele:interpolateElevation(parseFloat(dist)), lat:coords.lat, lng:coords.lng, trackName: selectedTrackName || null});
   renumberWaypoints();
   profileCanvas.render();
   updateSidebar();
@@ -1517,6 +1520,7 @@ function generateGPX() {
     for (var ti = 0; ti < originalTracks.length; ti++) {
       var trk = originalTracks[ti];
       var tps = trk.name === selectedTrackName ? profileCanvas.trackpoints : trk.trackpoints;
+      var twps = trk.name === selectedTrackName ? profileCanvas.waypoints : (trk.waypoints || []);
       xml += '  <trk>\n    <name>' + escXml(trk.name) + '</name>\n';
       if (trk.name === selectedTrackName && zones && zones.length) {
         xml += '    <extensions>\n      <zns:zones>\n';
@@ -1532,7 +1536,16 @@ function generateGPX() {
         if (tps[i].ele !== undefined) xml += '        <ele>' + tps[i].ele.toFixed(1) + '</ele>\n';
         xml += '      </trkpt>\n';
       }
-      xml += '    </trkseg>\n  </trk>\n';
+      xml += '    </trkseg>\n';
+      for (var wi = 0; wi < twps.length; wi++) {
+        var w = twps[wi];
+        if (w.lat == null || w.lng == null || isNaN(w.lat) || isNaN(w.lng)) continue;
+        xml += '    <wpt lat="' + w.lat.toFixed(7) + '" lon="' + w.lng.toFixed(7) + '">\n';
+        if (w.ele !== undefined && w.ele !== null) xml += '      <ele>' + w.ele.toFixed(1) + '</ele>\n';
+        xml += '      <name>' + escXml(w.name) + '</name>\n';
+        xml += '    </wpt>\n';
+      }
+      xml += '  </trk>\n';
     }
   } else {
     var tps = profileCanvas.trackpoints;
@@ -1552,16 +1565,17 @@ function generateGPX() {
         if (tps[i].ele !== undefined) xml += '        <ele>' + tps[i].ele.toFixed(1) + '</ele>\n';
         xml += '      </trkpt>\n';
       }
-      xml += '    </trkseg>\n  </trk>\n';
+      xml += '    </trkseg>\n';
+      var wps = profileCanvas.waypoints;
+      for (var i = 0; i < wps.length; i++) {
+        if (wps[i].lat == null || wps[i].lng == null || isNaN(wps[i].lat) || isNaN(wps[i].lng)) continue;
+        xml += '    <wpt lat="' + wps[i].lat.toFixed(7) + '" lon="' + wps[i].lng.toFixed(7) + '">\n';
+        if (wps[i].ele !== undefined && wps[i].ele !== null) xml += '      <ele>' + wps[i].ele.toFixed(1) + '</ele>\n';
+        xml += '      <name>' + escXml(wps[i].name) + '</name>\n';
+        xml += '    </wpt>\n';
+      }
+      xml += '  </trk>\n';
     }
-  }
-  var wps = profileCanvas.waypoints;
-  for (var i = 0; i < wps.length; i++) {
-    if (wps[i].lat == null || wps[i].lng == null || isNaN(wps[i].lat) || isNaN(wps[i].lng)) continue;
-    xml += '  <wpt lat="' + wps[i].lat.toFixed(7) + '" lon="' + wps[i].lng.toFixed(7) + '">\n';
-    if (wps[i].ele !== undefined) xml += '    <ele>' + wps[i].ele.toFixed(1) + '</ele>\n';
-    xml += '    <name>' + escXml(wps[i].name) + '</name>\n';
-    xml += '  </wpt>\n';
   }
   xml += '</gpx>';
   return xml;
@@ -1586,6 +1600,7 @@ function generateKML() {
     for (var ti = 0; ti < originalTracks.length; ti++) {
       var trk = originalTracks[ti];
       var tps = trk.name === selectedTrackName ? profileCanvas.trackpoints : trk.trackpoints;
+      var twps = trk.name === selectedTrackName ? profileCanvas.waypoints : (trk.waypoints || []);
       xml += '  <Placemark>\n    <name>' + escXml(trk.name) + '</name>\n';
       if (originalFileFormat === 'kml') {
         xml += '    <Style>\n      <LineStyle>\n        <color>ff0000ff</color>\n        <width>3</width>\n      </LineStyle>\n    </Style>\n';
@@ -1597,6 +1612,14 @@ function generateKML() {
         xml += '\n';
       }
       xml += '      </coordinates>\n    </LineString>\n  </Placemark>\n';
+      for (var wi = 0; wi < twps.length; wi++) {
+        var w = twps[wi];
+        if (w.lat == null || w.lng == null || isNaN(w.lat) || isNaN(w.lng)) continue;
+        xml += '  <Placemark>\n    <name>' + escXml(w.name) + '</name>\n    <Point>\n      <coordinates>';
+        xml += w.lng.toFixed(7) + ',' + w.lat.toFixed(7);
+        if (w.ele !== undefined && w.ele !== null) xml += ',' + w.ele.toFixed(1);
+        xml += '</coordinates>\n    </Point>\n  </Placemark>\n';
+      }
     }
   } else {
     var tps = profileCanvas.trackpoints;
@@ -1609,14 +1632,14 @@ function generateKML() {
       }
       xml += '      </coordinates>\n    </LineString>\n  </Placemark>\n';
     }
-  }
-  var wps = profileCanvas.waypoints;
-  for (var i = 0; i < wps.length; i++) {
-    if (wps[i].lat == null || wps[i].lng == null || isNaN(wps[i].lat) || isNaN(wps[i].lng)) continue;
-    xml += '  <Placemark>\n    <name>' + escXml(wps[i].name) + '</name>\n    <Point>\n      <coordinates>';
-    xml += wps[i].lng.toFixed(7) + ',' + wps[i].lat.toFixed(7);
-    if (wps[i].ele !== undefined) xml += ',' + wps[i].ele.toFixed(1);
-    xml += '</coordinates>\n    </Point>\n  </Placemark>\n';
+    var wps = profileCanvas.waypoints;
+    for (var i = 0; i < wps.length; i++) {
+      if (wps[i].lat == null || wps[i].lng == null || isNaN(wps[i].lat) || isNaN(wps[i].lng)) continue;
+      xml += '  <Placemark>\n    <name>' + escXml(wps[i].name) + '</name>\n    <Point>\n      <coordinates>';
+      xml += wps[i].lng.toFixed(7) + ',' + wps[i].lat.toFixed(7);
+      if (wps[i].ele !== undefined) xml += ',' + wps[i].ele.toFixed(1);
+      xml += '</coordinates>\n    </Point>\n  </Placemark>\n';
+    }
   }
   xml += '</Document>\n</kml>';
   return xml;

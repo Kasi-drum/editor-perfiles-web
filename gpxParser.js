@@ -58,6 +58,21 @@ var gpxParser = {
       });
     });
 
+    if (tracks.length > 1) {
+      for (var wi = 0; wi < waypoints.length; wi++) {
+        var wp = waypoints[wi];
+        var bestIdx = 0, bestDist = Infinity;
+        for (var ti = 0; ti < tracks.length; ti++) {
+          var tps = tracks[ti].trackpoints;
+          for (var pi = 0; pi < tps.length; pi++) {
+            var d = haversine(wp.lat, wp.lng, tps[pi].lat, tps[pi].lng);
+            if (d < bestDist) { bestDist = d; bestIdx = ti; }
+          }
+        }
+        wp.trackName = tracks[bestIdx].name;
+      }
+    }
+
     return { tracks: tracks, waypoints: waypoints, zones: zones };
   },
   attachWaypoints: function(waypoints, trackpoints) {
@@ -76,6 +91,15 @@ var gpxParser = {
     var parsed = this.parseTracks(xmlString);
 
     if (parsed.tracks.length > 1) {
+      for (var ti = 0; ti < parsed.tracks.length; ti++) {
+        var twps = [];
+        for (var wi = 0; wi < parsed.waypoints.length; wi++) {
+          if (parsed.waypoints[wi].trackName === parsed.tracks[ti].name) {
+            twps.push(parsed.waypoints[wi]);
+          }
+        }
+        parsed.tracks[ti].waypoints = twps;
+      }
       return {
         tracks: parsed.tracks,
         waypoints: parsed.waypoints,

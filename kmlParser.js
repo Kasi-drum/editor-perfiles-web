@@ -70,10 +70,10 @@ var kmlParser = {
       }
     }
 
-    var dataEls = xml.getElementsByTagName('Data');
-    for (var di = 0; di < dataEls.length; di++) {
-      if (dataEls[di].getAttribute('name') === 'editorperfiles_zones') {
-        var valueEl = dataEls[di].getElementsByTagName('value')[0];
+    for (var di = 0; di < xml.getElementsByTagName('Data').length; di++) {
+      var dataEl = xml.getElementsByTagName('Data')[di];
+      if (dataEl.getAttribute('name') === 'editorperfiles_zones') {
+        var valueEl = dataEl.getElementsByTagName('value')[0];
         if (valueEl) {
           try {
             var parsed = JSON.parse(valueEl.textContent);
@@ -81,6 +81,21 @@ var kmlParser = {
           } catch (e) {}
         }
         break;
+      }
+    }
+
+    if (tracks.length > 1) {
+      for (var wi = 0; wi < allWaypoints.length; wi++) {
+        var wp = allWaypoints[wi];
+        var bestIdx = 0, bestDist = Infinity;
+        for (var ti = 0; ti < tracks.length; ti++) {
+          var tps = tracks[ti].trackpoints;
+          for (var pi = 0; pi < tps.length; pi++) {
+            var d = haversine(wp.lat, wp.lng, tps[pi].lat, tps[pi].lng);
+            if (d < bestDist) { bestDist = d; bestIdx = ti; }
+          }
+        }
+        wp.trackName = tracks[bestIdx].name;
       }
     }
 
@@ -102,6 +117,15 @@ var kmlParser = {
     var parsed = this.parseTracks(xmlString);
 
     if (parsed.tracks.length > 1) {
+      for (var ti = 0; ti < parsed.tracks.length; ti++) {
+        var twps = [];
+        for (var wi = 0; wi < parsed.waypoints.length; wi++) {
+          if (parsed.waypoints[wi].trackName === parsed.tracks[ti].name) {
+            twps.push(parsed.waypoints[wi]);
+          }
+        }
+        parsed.tracks[ti].waypoints = twps;
+      }
       return {
         tracks: parsed.tracks,
         waypoints: parsed.waypoints,
