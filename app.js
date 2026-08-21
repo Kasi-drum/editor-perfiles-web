@@ -4,6 +4,9 @@ var waypointCounter = 0;
 var zoneCounter = 0;
 var gpxFileName = "perfil";
 var elevationProfile = null; // cache del perfil completo
+var originalFileXml = null;
+var selectedTrackName = null;
+var originalFileFormat = null;
 
 function showModal(title, label, defaultValue) {
   return new Promise(function(resolve) {
@@ -718,7 +721,8 @@ function openGPX() {
     document.getElementById("file-name").textContent = gpxFileName;
     var reader = new FileReader();
     reader.onload = async function(ev) {
-      var data = /\.kml$/i.test(file.name) ? kmlParser.parse(ev.target.result) : gpxParser.parse(ev.target.result);
+      var isKml = /\.kml$/i.test(file.name);
+      var data = isKml ? kmlParser.parse(ev.target.result) : gpxParser.parse(ev.target.result);
       if (data.multiple && data.tracks && data.tracks.length > 1) {
         var sel = await showTrackSelector(data.tracks);
         if (!sel) {
@@ -726,6 +730,9 @@ function openGPX() {
           document.getElementById("file-name").textContent = gpxFileName;
           return;
         }
+        originalFileXml = ev.target.result;
+        selectedTrackName = sel.name;
+        originalFileFormat = isKml ? 'kml' : 'gpx';
         data = {
           trackpoints: sel.trackpoints,
           totalDistance: sel.totalDistance,
@@ -734,11 +741,15 @@ function openGPX() {
           waypoints: data.waypoints,
           zones: data.zones
         };
-        if (/\.gpx$/i.test(file.name)) {
+        if (!isKml) {
           gpxParser.attachWaypoints(data.waypoints, data.trackpoints);
         } else {
           kmlParser.attachWaypoints(data.waypoints, data.trackpoints);
         }
+      } else {
+        originalFileXml = null;
+        selectedTrackName = null;
+        originalFileFormat = null;
       }
       currentData = data;
       profileCanvas.waypoints = [];
@@ -1493,6 +1504,9 @@ function renumberWaypoints() {
   }
 }
 function generateGPX() {
+  if (originalFileXml && originalFileFormat === 'gpx' && selectedTrackName) {
+    return generateGPXFromOriginal();
+  }
   var xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
   xml += '<gpx version="1.1" creator="EditorPerfiles" xmlns="http://www.topografix.com/GPX/1/1" xmlns:zns="http://editorperfiles/zones">\n';
   var tps = profileCanvas.trackpoints;
@@ -1526,10 +1540,80 @@ function generateGPX() {
   xml += '</gpx>';
   return xml;
 }
+function generateGPXFromOriginal() {
+  var parser = new DOMParser();
+  var doc = parser.parseFromString(originalFileXml, 'text/xml');
+  var trks = doc.querySelectorAll('trk');
+  for (var i = 0; i < trks.length; i++) {
+    var nameEl = trks[i].querySelector('name');
+    if (nameEl && nameEl.textContent.trim() === selectedTrackName) {
+      var existingExt = trks[i].querySelector('extensions');
+      if (existingExt) trks[i].removeChild(existingExt);
+      var zones = profileCanvas.zones;
+      if (zones && zones.length) {
+        var extEl = doc.createElementNS('http://editorperfiles/zones', 'extensions');
+        var znsEl = doc.createElementNS('http://editorperfiles/zones', 'zns:zones');
+        for (var zi = 0; zi < zones.length; zi++) {
+          var z = zones[zi];
+          var zoneEl = doc.createElementNS('http://editorperfiles/zones', 'zns:zone');
+          zoneEl.setAttribute('id', z.id);
+          zoneEl.setAttribute('name', z.name);
+          zoneEl.setAttribute('start', z.startDist.toFixed(3));
+          zoneEl.setAttribute('end', z.endDist.toFixed(3));
+          zoneEl.setAttribute('startEle', z.startEle.toFixed(1));
+          zoneEl.setAttribute('endEle', z.endEle.toFixed(1));
+          znsEl.appendChild(zoneEl);
+        }
+        extEl.appendChild(znsEl);
+        trks[i].appendChild(extEl);
+      }
+      var oldSegs = trks[i].querySelectorAll('trkseg');
+      for (var si = oldSegs.length - 1; si >= 0; si--) trks[i].removeChild(oldSegs[si]);
+      var segEl = doc.createElement('trkseg');
+      var tps = profileCanvas.trackpoints;
+      for (var ti = 0; ti < tps.length; ti++) {
+        var ptEl = doc.createElement('trkpt');
+        ptEl.setAttribute('lat', tps[ti].lat.toFixed(7));
+        ptEl.setAttribute('lon', tps[ti].lng.toFixed(7));
+        if (tps[ti].ele !== undefined) {
+          var eleEl = doc.createElement('ele');
+          eleEl.textContent = tps[ti].ele.toFixed(1);
+          ptEl.appendChild(eleEl);
+        }
+        segEl.appendChild(ptEl);
+      }
+      trks[i].appendChild(segEl);
+      break;
+    }
+  }
+  var oldWpts = doc.querySelectorAll('wpt');
+  for (var i = oldWpts.length - 1; i >= 0; i--) doc.documentElement.removeChild(oldWpts[i]);
+  var wps = profileCanvas.waypoints;
+  for (var i = 0; i < wps.length; i++) {
+    if (wps[i].lat == null || wps[i].lng == null || isNaN(wps[i].lat) || isNaN(wps[i].lng)) continue;
+    var wptEl = doc.createElement('wpt');
+    wptEl.setAttribute('lat', wps[i].lat.toFixed(7));
+    wptEl.setAttribute('lon', wps[i].lng.toFixed(7));
+    if (wps[i].ele !== undefined) {
+      var eleEl = doc.createElement('ele');
+      eleEl.textContent = wps[i].ele.toFixed(1);
+      wptEl.appendChild(eleEl);
+    }
+    var nameEl = doc.createElement('name');
+    nameEl.textContent = wps[i].name;
+    wptEl.appendChild(nameEl);
+    doc.documentElement.appendChild(wptEl);
+  }
+  var serializer = new XMLSerializer();
+  return '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(doc);
+}
 function escXml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
 }
 function generateKML() {
+  if (originalFileXml && originalFileFormat === 'kml' && selectedTrackName) {
+    return generateKMLFromOriginal();
+  }
   var xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
   xml += '<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n';
   xml += '  <name>' + escXml(gpxFileName) + '</name>\n';
@@ -1559,6 +1643,74 @@ function generateKML() {
   }
   xml += '</Document>\n</kml>';
   return xml;
+}
+function generateKMLFromOriginal() {
+  var parser = new DOMParser();
+  var doc = parser.parseFromString(originalFileXml, 'text/xml');
+  var ns = 'http://www.opengis.net/kml/2.2';
+  var placemarks = doc.getElementsByTagName('Placemark');
+  for (var i = 0; i < placemarks.length; i++) {
+    var pm = placemarks[i];
+    var nameEl = pm.getElementsByTagName('name')[0];
+    if (nameEl && nameEl.textContent.trim() === selectedTrackName) {
+      var oldLS = pm.getElementsByTagName('LineString')[0];
+      if (oldLS) {
+        var oldCoords = oldLS.getElementsByTagName('coordinates')[0];
+        if (oldCoords) {
+          var coordsText = '';
+          var tps = profileCanvas.trackpoints;
+          for (var ti = 0; ti < tps.length; ti++) {
+            coordsText += tps[ti].lng.toFixed(7) + ',' + tps[ti].lat.toFixed(7);
+            if (tps[ti].ele !== undefined) coordsText += ',' + tps[ti].ele.toFixed(1);
+            coordsText += '\n';
+          }
+          oldCoords.textContent = coordsText;
+        }
+      }
+      break;
+    }
+  }
+  var documentEl = doc.getElementsByTagName('Document')[0];
+  if (documentEl) {
+    var oldExt = documentEl.getElementsByTagName('ExtendedData')[0];
+    if (oldExt) documentEl.removeChild(oldExt);
+    var zones = profileCanvas.zones;
+    if (zones && zones.length) {
+      var extEl = doc.createElement('ExtendedData');
+      var dataEl = doc.createElement('Data');
+      dataEl.setAttribute('name', 'editorperfiles_zones');
+      var valueEl = doc.createElement('value');
+      valueEl.textContent = JSON.stringify(zones.map(function(z) {
+        return {id: z.id, name: z.name, startDist: z.startDist, endDist: z.endDist, startEle: z.startEle, endEle: z.endEle};
+      }));
+      dataEl.appendChild(valueEl);
+      extEl.appendChild(dataEl);
+      documentEl.appendChild(extEl);
+    }
+    var oldWpPms = [];
+    var allPms = documentEl.getElementsByTagName('Placemark');
+    for (var i = 0; i < allPms.length; i++) {
+      if (allPms[i].getElementsByTagName('Point')[0]) oldWpPms.push(allPms[i]);
+    }
+    for (var i = oldWpPms.length - 1; i >= 0; i--) documentEl.removeChild(oldWpPms[i]);
+    var wps = profileCanvas.waypoints;
+    for (var i = 0; i < wps.length; i++) {
+      if (wps[i].lat == null || wps[i].lng == null || isNaN(wps[i].lat) || isNaN(wps[i].lng)) continue;
+      var wpPm = doc.createElement('Placemark');
+      var wpName = doc.createElement('name');
+      wpName.textContent = wps[i].name;
+      wpPm.appendChild(wpName);
+      var point = doc.createElement('Point');
+      var coords = doc.createElement('coordinates');
+      coords.textContent = wps[i].lng.toFixed(7) + ',' + wps[i].lat.toFixed(7);
+      if (wps[i].ele !== undefined) coords.textContent += ',' + wps[i].ele.toFixed(1);
+      point.appendChild(coords);
+      wpPm.appendChild(point);
+      documentEl.appendChild(wpPm);
+    }
+  }
+  var serializer = new XMLSerializer();
+  return '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(doc);
 }
 function chooseSaveFormat() {
   return new Promise(function(resolve) {
