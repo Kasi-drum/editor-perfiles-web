@@ -1587,7 +1587,7 @@ function generateGPXFromOriginal() {
     }
   }
   var oldWpts = doc.querySelectorAll('wpt');
-  for (var i = oldWpts.length - 1; i >= 0; i--) doc.documentElement.removeChild(oldWpts[i]);
+  for (var i = oldWpts.length - 1; i >= 0; i--) oldWpts[i].parentNode.removeChild(oldWpts[i]);
   var wps = profileCanvas.waypoints;
   for (var i = 0; i < wps.length; i++) {
     if (wps[i].lat == null || wps[i].lng == null || isNaN(wps[i].lat) || isNaN(wps[i].lng)) continue;
@@ -1599,9 +1599,9 @@ function generateGPXFromOriginal() {
       eleEl.textContent = wps[i].ele.toFixed(1);
       wptEl.appendChild(eleEl);
     }
-    var nameEl = doc.createElement('name');
-    nameEl.textContent = wps[i].name;
-    wptEl.appendChild(nameEl);
+    var wNameEl = doc.createElement('name');
+    wNameEl.textContent = wps[i].name;
+    wptEl.appendChild(wNameEl);
     doc.documentElement.appendChild(wptEl);
   }
   var serializer = new XMLSerializer();
@@ -1645,17 +1645,42 @@ function generateKML() {
   return xml;
 }
 function generateKMLFromOriginal() {
+  function findByLocalName(el, name) {
+    var result = [];
+    for (var i = 0; i < el.childNodes.length; i++) {
+      var c = el.childNodes[i];
+      if (c.nodeType === 1 && c.localName === name) result.push(c);
+    }
+    return result;
+  }
+  function findByLocalNameDeep(el, name) {
+    var result = [];
+    var stack = [el];
+    while (stack.length) {
+      var cur = stack.pop();
+      for (var i = 0; i < cur.childNodes.length; i++) {
+        var c = cur.childNodes[i];
+        if (c.nodeType === 1) {
+          if (c.localName === name) result.push(c);
+          stack.push(c);
+        }
+      }
+    }
+    return result;
+  }
   var parser = new DOMParser();
   var doc = parser.parseFromString(originalFileXml, 'text/xml');
-  var ns = 'http://www.opengis.net/kml/2.2';
-  var placemarks = doc.getElementsByTagName('Placemark');
+  var placemarks = findByLocalNameDeep(doc, 'Placemark');
   for (var i = 0; i < placemarks.length; i++) {
     var pm = placemarks[i];
-    var nameEl = pm.getElementsByTagName('name')[0];
+    var nameEls = findByLocalName(pm, 'name');
+    var nameEl = nameEls.length ? nameEls[0] : null;
     if (nameEl && nameEl.textContent.trim() === selectedTrackName) {
-      var oldLS = pm.getElementsByTagName('LineString')[0];
+      var lsEls = findByLocalName(pm, 'LineString');
+      var oldLS = lsEls.length ? lsEls[0] : null;
       if (oldLS) {
-        var oldCoords = oldLS.getElementsByTagName('coordinates')[0];
+        var coordsEls = findByLocalName(oldLS, 'coordinates');
+        var oldCoords = coordsEls.length ? coordsEls[0] : null;
         if (oldCoords) {
           var coordsText = '';
           var tps = profileCanvas.trackpoints;
@@ -1670,16 +1695,17 @@ function generateKMLFromOriginal() {
       break;
     }
   }
-  var documentEl = doc.getElementsByTagName('Document')[0];
+  var documentEls = findByLocalNameDeep(doc, 'Document');
+  var documentEl = documentEls.length ? documentEls[0] : null;
   if (documentEl) {
-    var oldExt = documentEl.getElementsByTagName('ExtendedData')[0];
-    if (oldExt) documentEl.removeChild(oldExt);
+    var oldExtEls = findByLocalName(documentEl, 'ExtendedData');
+    if (oldExtEls.length) documentEl.removeChild(oldExtEls[0]);
     var zones = profileCanvas.zones;
     if (zones && zones.length) {
-      var extEl = doc.createElement('ExtendedData');
-      var dataEl = doc.createElement('Data');
+      var extEl = doc.createElementNS('http://www.opengis.net/kml/2.2', 'ExtendedData');
+      var dataEl = doc.createElementNS('http://www.opengis.net/kml/2.2', 'Data');
       dataEl.setAttribute('name', 'editorperfiles_zones');
-      var valueEl = doc.createElement('value');
+      var valueEl = doc.createElementNS('http://www.opengis.net/kml/2.2', 'value');
       valueEl.textContent = JSON.stringify(zones.map(function(z) {
         return {id: z.id, name: z.name, startDist: z.startDist, endDist: z.endDist, startEle: z.startEle, endEle: z.endEle};
       }));
@@ -1688,20 +1714,21 @@ function generateKMLFromOriginal() {
       documentEl.appendChild(extEl);
     }
     var oldWpPms = [];
-    var allPms = documentEl.getElementsByTagName('Placemark');
+    var allPms = findByLocalName(documentEl, 'Placemark');
     for (var i = 0; i < allPms.length; i++) {
-      if (allPms[i].getElementsByTagName('Point')[0]) oldWpPms.push(allPms[i]);
+      var pts = findByLocalName(allPms[i], 'Point');
+      if (pts.length) oldWpPms.push(allPms[i]);
     }
-    for (var i = oldWpPms.length - 1; i >= 0; i--) documentEl.removeChild(oldWpPms[i]);
+    for (var i = oldWpPms.length - 1; i >= 0; i--) oldWpPms[i].parentNode.removeChild(oldWpPms[i]);
     var wps = profileCanvas.waypoints;
     for (var i = 0; i < wps.length; i++) {
       if (wps[i].lat == null || wps[i].lng == null || isNaN(wps[i].lat) || isNaN(wps[i].lng)) continue;
-      var wpPm = doc.createElement('Placemark');
-      var wpName = doc.createElement('name');
+      var wpPm = doc.createElementNS('http://www.opengis.net/kml/2.2', 'Placemark');
+      var wpName = doc.createElementNS('http://www.opengis.net/kml/2.2', 'name');
       wpName.textContent = wps[i].name;
       wpPm.appendChild(wpName);
-      var point = doc.createElement('Point');
-      var coords = doc.createElement('coordinates');
+      var point = doc.createElementNS('http://www.opengis.net/kml/2.2', 'Point');
+      var coords = doc.createElementNS('http://www.opengis.net/kml/2.2', 'coordinates');
       coords.textContent = wps[i].lng.toFixed(7) + ',' + wps[i].lat.toFixed(7);
       if (wps[i].ele !== undefined) coords.textContent += ',' + wps[i].ele.toFixed(1);
       point.appendChild(coords);
@@ -1710,6 +1737,8 @@ function generateKMLFromOriginal() {
     }
   }
   var serializer = new XMLSerializer();
+  return '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(doc);
+}
   return '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(doc);
 }
 function chooseSaveFormat() {
