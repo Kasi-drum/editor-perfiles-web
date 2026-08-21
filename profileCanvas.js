@@ -217,7 +217,7 @@ class ProfileCanvas {
       }
     }
     this.renderWpLabels();
-    this.renderBottomInfo(ctx);
+    if (this.showZones) this.renderBottomInfo(ctx);
     if (this.mouseX >= 0) {
       if (this.mouseX >= area.x && this.mouseX <= area.x + area.width) {
         var dist = ((this.mouseX - area.x) / area.width) * this.totalDistance;
